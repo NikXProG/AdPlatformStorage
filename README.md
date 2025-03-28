@@ -1,6 +1,9 @@
 # AdPlatformStorage
 
-AdPlatformStorage – сервис поиска рекламных площадок по регионам с использованием Trie-дерева.
+[![Postman](https://img.shields.io/badge/Test_in-Postman-FF6C37?logo=postman)](https://example.com/postman-collection)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+AdPlatformStorage – сервис поиска рекламных площадок по регионам с использованием модернизированного [Trie-дерева](https://ru.wikipedia.org/wiki/Префиксное_дерево).
 
 # 🔍 Описание
 
