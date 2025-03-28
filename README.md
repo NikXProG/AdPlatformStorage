@@ -1,4 +1,4 @@
-# AdPlatformStorage ( beta )
+# AdPlatformStorage
 
 AdPlatformStorage – сервис поиска рекламных площадок по регионам с использованием Trie-дерева.
 
