@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using AdPlatformStorage.Server.Core.Exceptions;
 using AdPlatformStorage.Server.REST.API.Models;
 using AdPlatformStorage.Server.REST.API.Services;
@@ -68,7 +67,7 @@ namespace AdPlatformStorage.Server.REST.API.Controller
         /// Returns a 500 Internal Server Error in case of unexpected errors.  
         /// </returns>
         /// <exception cref="FormatException">Thrown when the source format is incorrect.</exception>
-        /// <exception cref="RestException.NotFoundStorageException">
+        /// <exception cref="RestException.NotFoundStorageErrorException">
         /// Thrown when the requested data cannot be found in storage.
         /// </exception>
         [HttpGet("platforms")]
@@ -93,14 +92,14 @@ namespace AdPlatformStorage.Server.REST.API.Controller
                 return StatusCode(StatusCodes.Status200OK, items);
 
             }
-            catch (RestException.NotFoundStorageException ex)
+            catch (RestException.NotFoundStorageErrorException ex)
             {
                 
                 _logger.LogError(ex, "Invalid source provided: {Source}", source.Source);
                 return BadRequest(
                     new ApiError
                     {
-                        ExceptionType= nameof(RestException.NotFoundStorageException),
+                        ExceptionType= nameof(RestException.NotFoundStorageErrorException),
                         Message = "The source data is missing or invalid.",
                         Details = new Details
                         {
@@ -156,7 +155,10 @@ namespace AdPlatformStorage.Server.REST.API.Controller
             {
                 if (file == null || file.Length == 0)
                 {
-                    return BadRequest("File is empty or not provided.");
+                    throw new
+                        RestException.NotFoundFileOrNullErrorException(
+                            "File is empty or not provided.", 
+                            nameof(UploadAdPlatformAsync));
                 }
                 
                 // Optimal batch size for high-performance bulk processing.
@@ -191,19 +193,21 @@ namespace AdPlatformStorage.Server.REST.API.Controller
                     }
                 }
                 
+                _logger.LogInformation("Storage processed successfully.");
+                
                 return StatusCode(
                     StatusCodes.Status201Created, 
                     "File processed successfully.");
                 
             }
             
-            catch (RestException.InvalidFormatFileException ex)
+            catch (RestException.InvalidFormatFileErrorException ex)
             {
                 _logger.LogError(ex, "Invalid file format: {Message}", ex.Message);
                 
                 return BadRequest(new ApiError
                 {
-                    ExceptionType= nameof(RestException.InvalidFormatFileException),
+                    ExceptionType= nameof(RestException.InvalidFormatFileErrorException),
                     Message = "Invalid file format",
                     Details = new Details
                     {
@@ -217,7 +221,27 @@ namespace AdPlatformStorage.Server.REST.API.Controller
                 });
                 
             }
-            
+            catch (RestException.NotFoundFileOrNullErrorException ex)
+            {
+                _logger.LogError(ex, "Not found file: {Message}", ex.Message);
+                
+                return BadRequest(new ApiError
+                {
+                    ExceptionType= nameof(RestException.NotFoundFileOrNullErrorException),
+                    Message = "Not found file",
+                    Details = new Details
+                    {
+                        ValidationExample = "Write something like this:" +
+                                            " AdPlatform:/ru/moscow ;" +
+                                            " Campaign_123:/ny/summer-sale,/la/fall-offer ;" +
+                                            " Test:/lon/price?id=123",
+                        MessageException = ex.Message,
+                        ErrorContextType = ex.TypeCallContext
+                    }
+                });
+                
+            }
+
             catch (Exception e)
             {
                 _logger.LogError(e, "Failed to fetch advertising platforms");
@@ -242,34 +266,107 @@ namespace AdPlatformStorage.Server.REST.API.Controller
         
         #region Private methods
         
-        private async Task WriteInStorageAsync(
-            List<string> lines, 
-            List<AdPlatformModel> temp, 
-            CancellationToken cancellationToken = default)
+      private async Task WriteInStorageAsync(
+        List<string> lines, 
+        List<AdPlatformModel> temp, 
+        CancellationToken cancellationToken = default)
         {
             var tasks = lines.Select(line => Task.Run(() =>
+            {
+                try
                 {
-                    if (!Regex.IsMatch(line, @"^(?![1_])[^:\n]+:\s*\/[a-z]{2,3}(?:\/[\w\-\.~:/?#\[\]@!$&'()*+,;=]+)?(?:\s*,\s*\/[a-z]{2,3}(?:\/[\w\-\.~:/?#\[\]@!$&'()*+,;=]+)?)*$"))
+                    
+                    if (!line.Contains(':'))
                     {
-                        throw new RestException.InvalidFormatFileException($"Invalid file format in line: '{line}'", nameof(WriteInStorageAsync));
+                        throw new RestException.InvalidFormatFileErrorException(
+                            $"Line must contain ':' separator: '{line}'", 
+                            nameof(WriteInStorageAsync));
                     }
 
                     var parts = line.Split(':', StringSplitOptions.TrimEntries);
+                    
+                    if (parts.Length != 2)
+                    {
+                        throw new RestException.InvalidFormatFileErrorException(
+                            $"Line must contain exactly one ':' separator: '{line}'", 
+                            nameof(WriteInStorageAsync));
+                    }
+                    
+                    if (string.IsNullOrWhiteSpace(parts[0]))
+                    {
+                        throw new RestException.InvalidFormatFileErrorException(
+                            "Platform name cannot be empty", 
+                            nameof(WriteInStorageAsync));
+                    }
+                    
+                    var pathStrings = parts[1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    
+                    var validPaths = new List<string>();
+
+                    foreach (var path in pathStrings)
+                    {
+                        if (string.IsNullOrWhiteSpace(path))
+                            continue;
+
+                        if (!Uri.TryCreate(path, UriKind.RelativeOrAbsolute, out var uri))
+                        {
+                            throw new RestException.InvalidFormatFileErrorException(
+                                $"Invalid path format: '{path}'", 
+                                nameof(WriteInStorageAsync));
+                        }
+                        
+                        if (!uri.IsAbsoluteUri && !path.StartsWith('/'))
+                        {
+                            throw new RestException.InvalidFormatFileErrorException(
+                                $"Relative paths must start with '/': '{path}'", 
+                                nameof(WriteInStorageAsync));
+                        }
+
+                        validPaths.Add(path);
+                    }
+
+                    if (validPaths.Count == 0)
+                    {
+                        throw new RestException.InvalidFormatFileErrorException(
+                            "At least one valid path must be provided ( for example, /ru )", 
+                            nameof(WriteInStorageAsync));
+                    }
 
                     lock (temp)
                     {
-                        temp.Add(new AdPlatformModel { Name = parts[0], Sources = parts[1].Split(',', StringSplitOptions.TrimEntries).ToList() });
+                        temp.Add(new AdPlatformModel 
+                        { 
+                            Name = parts[0], 
+                            Sources = validPaths 
+                        });
                     }
-                    
-                }, cancellationToken))
-                .ToList();
+                }
+                
+                catch (RestException.InvalidFormatFileErrorException)
+                {
+                    throw; 
+                }
+                catch (Exception ex)
+                {
+                    throw new RestException.InvalidFormatFileErrorException(
+                        $"Unexpected error processing line: '{line}'. {ex.Message}", 
+                        nameof(WriteInStorageAsync));
+                }
+                
+            }, cancellationToken)).ToList();
 
             await Task.WhenAll(tasks);
-
             
+            if (temp.Count == 0)
+            {
+                throw new RestException.InvalidFormatFileErrorException(
+                    "No valid data to save", 
+                    nameof(WriteInStorageAsync));
+            }
+
             await _addPlatformService.SaveAdPlatformAsync(temp, cancellationToken);
         }
-        
+      
         #endregion
         
     }

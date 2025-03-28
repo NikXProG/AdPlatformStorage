@@ -5,7 +5,7 @@ using AdPlatformStorage.Server.Core.Exceptions;
 
 namespace AdPlatformStorage.Server.REST.API.Services;
 
-public class AddPlatformService : IDisposable
+public class AddPlatformService
 {
     
     #region Fields
@@ -40,16 +40,7 @@ public class AddPlatformService : IDisposable
     /// <param name="cache"></param>
     public AddPlatformService(IMemoryCache cache)
     {
-        try
-        {
-            _cache = cache;
-        }
-        catch
-        {
-            Dispose();
-            throw;
-        }
-     
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
     }
     
     #endregion
@@ -75,6 +66,8 @@ public class AddPlatformService : IDisposable
             concreteMemoryCache.Clear();
         }
         
+        // obsolete code
+        // TODO: multithreading can be added later
         await Task.Run(() =>
         {
             foreach (var platform in platforms)
@@ -95,7 +88,7 @@ public class AddPlatformService : IDisposable
     /// <param name="key"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    /// <exception cref="RestException.NotFoundStorageException"></exception>
+    /// <exception cref="RestException.NotFoundStorageErrorException"></exception>
     public async Task<AdPlatformModel> GetAdPlatformAsync(
         string key, 
         CancellationToken cancellationToken = default)
@@ -103,7 +96,7 @@ public class AddPlatformService : IDisposable
 
         if (_storage == null)
         {
-            throw new RestException.NotFoundStorageException(
+            throw new RestException.NotFoundStorageErrorException(
                 $"No storage available. Please create storage first via POST /api/storage",
                 nameof(AddPlatformService));
         }
@@ -140,23 +133,6 @@ public class AddPlatformService : IDisposable
     
     #endregion
     
-    /// <summary>
-    /// freeing up resources
-    /// </summary>
-    public void Dispose()
-    {
-        
-        if (_isDisposed)
-            return;
-        
-        if (_cache != null)
-        {
-            _cache.Dispose();
-        }
-        
-        _isDisposed = true;
-    }
-
     
     
 }

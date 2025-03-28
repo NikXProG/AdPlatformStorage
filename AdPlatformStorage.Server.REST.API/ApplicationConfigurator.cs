@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using AdPlatformStorage.Server.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Hosting;
@@ -41,7 +40,7 @@ namespace AdPlatformStorage.Server.REST.API
             services
                 .Configure<FormOptions>(options =>
                 {
-                    options.MultipartBodyLengthLimit = 524288000;
+                    options.MultipartBodyLengthLimit = fileUploadSettings.MaxFileSize;
                 })
                 .AddMemoryCache()
                 .AddControllers()

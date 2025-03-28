@@ -3,55 +3,38 @@ namespace AdPlatformStorage.Server.Core.Exceptions
     
     public static class RestException
     {
-    
-        public class NotFoundStorageException : NullReferenceException
+        
+        public class RestErrorException : ApplicationException
         {
-   
-            public string? TypeCallContext { get; set; }
-        
-            public NotFoundStorageException(string message)
-                : base(message)
-            {
-            }
-        
-            public NotFoundStorageException(string message, string typeCallContext) : base(message)
-            {
-                TypeCallContext = typeCallContext;
-            }
-        
-            public NotFoundStorageException(string message, Exception innerException,string? typeCallContext = null)
-                : base(message, innerException)
-            {
-                TypeCallContext = typeCallContext;
-            }
-        }
-    
-        public class InvalidFormatFileException : FormatException
-        {
-        
-        
-            public InvalidFormatFileException(string message)
-                : base(message)
-            {
-            }
-
-            public InvalidFormatFileException(string message, string typeCallContext) : base(message)
-            {
-                TypeCallContext = typeCallContext;
-            }
-        
-            public InvalidFormatFileException(string message, Exception innerException, string? typeCallContext = null)
+            public RestErrorException(string message, string? typeCallContext = null, Exception? innerException = null)
                 : base(message, innerException)
             {
                 TypeCallContext = typeCallContext;
             }
 
             public string? TypeCallContext { get; set; }
-        
-
+            
         }
     
-    
+        public class NotFoundStorageErrorException : RestErrorException
+        {
+            public NotFoundStorageErrorException(string message, string? typeCallContext = null, Exception? innerException = null)
+                : base(message, typeCallContext, innerException) { }
+        }
+
+        public class InvalidFormatFileErrorException : RestErrorException
+        {
+            public InvalidFormatFileErrorException(string message, string? typeCallContext = null, Exception? innerException = null)
+                : base(message, typeCallContext, innerException) { }
+        }
+
+        public class NotFoundFileOrNullErrorException : RestErrorException
+        {
+            public NotFoundFileOrNullErrorException(string message, string? typeCallContext = null, Exception? innerException = null)
+                : base(message, typeCallContext, innerException) { }
+        }
+        
+        
     }
     
 }

@@ -14,11 +14,16 @@ namespace AdPlatformStorage.Server.REST.API
             webHostBuilder
                 .ConfigureKestrel((context, options) =>
                 {
+                    var fileUploadSettings = new FileUploadSettings();
+        
+                    context.Configuration.Bind(nameof(FileUploadSettings), fileUploadSettings);
+
+                    
                     var serverSettings = new ServerSettings();
                     context.Configuration.Bind(nameof(ServerSettings), serverSettings);
 
 
-                    options.Limits.MaxRequestBodySize = 524288000;
+                    options.Limits.MaxRequestBodySize = fileUploadSettings.MaxFileSize;
                 
                     options.Listen(
                         IPAddress.Parse(serverSettings.ListenAddress),
