@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\AdPlatformStorage.Server.Core\AdPlatformStorage.Server.Core.csproj" />
+      <ProjectReference Include="..\AdPlatformStorage.Server.REST.API.Models\AdPlatformStorage.Server.REST.API.Models.csproj" />
+      <ProjectReference Include="..\AdPlatformStorage.Server.Storage\AdPlatformStorage.Server.Storage.csproj" />
+    </ItemGroup>
+
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="7.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0-preview.2.25163.2" />
+    </ItemGroup>
+    
+</Project>
